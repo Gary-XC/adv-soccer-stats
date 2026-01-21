@@ -103,3 +103,16 @@ Current production rate
 - Visualization: Matplotlib, Seaborn, Plotly
 
 ## Repo Structure (Initial)
+  README.md
+  requirements.txt
+  .gitignore
+  data/
+    raw_csv/
+  src/
+    __init__.py
+    config.py
+    io_utils.py
+    collect_fbref.py
+    collect_understat.py
+    collect_fotmob.py
+    collect_all.py

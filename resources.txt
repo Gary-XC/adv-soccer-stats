@@ -1,0 +1,13 @@
+(This is my first project of this scale and to a "production" level, so I will be referencing a lot of articles and documentations on what the correct )
+
+SoccerData Docs: https://soccerdata.readthedocs.io/en/stable/
+footballdata.org API: https://docs.football-data.org/general/v4/team.html#_matches
+
+Data Preprocessing:
+https://www.datacamp.com/blog/data-preprocessing
+
+Data pre-processing Techniques:
+https://www.sciencedirect.com/science/article/pii/S2666285X22000565
+
+Evaluation metrics for machine learning:
+https://www.nature.com/articles/s41598-024-56706-x#Abs1
