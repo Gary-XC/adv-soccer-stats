@@ -8,3 +8,11 @@ soccerdata==1.8.8
 tqdm==4.67.1
 mplsoccer
 adjustText
+langchain>=0.1.0
+tabulate 
+langchain-ollama
+langchain-community
+fastapi
+streamlit
+uvicorn
+rapidfuzz # solving the Exact Match trap
