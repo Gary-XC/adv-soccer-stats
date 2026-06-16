@@ -1,19 +1,20 @@
-name: Update WC Data & Sync to HF Space
+name: Update Data Pipeline & Deploy to HF Space
 
 on:
-  # Allow manual triggering from the GitHub Actions tab
+  schedule:
+    - cron: '0 6 * * *'
   workflow_dispatch:
-  
-  # Optional: Run automatically every day at 6:00 AM UTC during the World Cup
-  # schedule:
-  #   - cron: '0 6 * * *'
+
+# Ensure the action has permission to push commits back to the repo
+permissions:
+  contents: write
 
 jobs:
   update-and-deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Checkout repository
+      - name: Checkout main repository
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -23,34 +24,54 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pandas numpy scikit-learn lightgbm huggingface_hub
+          pip install requests pandas numpy joblib scikit-learn lightgbm
 
-      - name: Run WC Matrix Update Script
+      - name: Run Data Update & Matrix Generation
+        env:
+          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+        run: python scripts/update_and_generate.py
+
+      - name: Commit Updated Raw Data Back to GitHub
         run: |
-          python scripts/update_wc_matrices.py
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/player_match_metrics_wc_auto.csv
+          
+          # Only commit if the raw CSV was actually modified
+          if ! git diff --staged --quiet; then
+            git commit -m "🤖 Auto-update: Appended latest WC match data"
+            git push origin main
+            echo "✅ Raw data saved to repository."
+          else
+            echo "No changes to raw data to commit."
+          fi
 
-      - name: Commit updated CSV to GitHub (Optional)
+      - name: Clone Hugging Face Space
         run: |
-          git config --global user.name 'GitHub Actions'
-          git config --global user.email 'actions@github.com'
-          git add data/hybrid_matrices.csv
-          git commit -m "Automated update: WC hybrid matrices" || echo "No changes to commit"
-          git push
+          git clone https://huggingface.co/spaces/GaryC246/soccer-app hf_space
 
-      - name: Upload to Hugging Face Space
+      - name: Copy updated Matrices to Space
+        run: |
+          mkdir -p hf_space/data
+          # Only copy if the matrix file exists (in case the pipeline skipped generation)
+          if [ -f data/hybrid_matrices.csv ]; then
+            cp data/hybrid_matrices.csv hf_space/data/hybrid_matrices.csv
+          fi
+
+      - name: Commit and Push to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          SPACE_ID: "GaryC246/soccer-app" # <-- CHANGE THIS to your actual Space ID
         run: |
-          python -c "
-          from huggingface_hub import HfApi
-          api = HfApi()
-          api.upload_file(
-              path_or_fileobj='data/hybrid_matrices.csv',
-              path_in_repo='data/hybrid_matrices.csv',
-              repo_id='${{ env.SPACE_ID }}',
-              repo_type='space',
-              token='${{ env.HF_TOKEN }}'
-          )
-          print('Successfully uploaded hybrid_matrices.csv to Hugging Face Space!')
-          "
+          cd hf_space
+          git config user.name "GitHub Actions CI"
+          git config user.email "ci@github.com"
+          git add data/hybrid_matrices.csv
+          
+          # Only commit if the matrices actually changed
+          if ! git diff --staged --quiet; then
+            git commit -m "🤖 Auto-update: Regenerated hybrid matrices with new WC data"
+            git push https://GaryC246:$HF_TOKEN@huggingface.co/spaces/GaryC246/soccer-app main
+            echo "Successfully pushed updated matrices to Hugging Face Space!"
+          else
+            echo "No new matrix data to push to Hugging Face."
+          fi
