@@ -2,7 +2,7 @@ name: Update Data Pipeline & Deploy to HF Space
 
 on:
   schedule:
-    - cron: '0 6 * * *'
+    - cron: '0 9 * * *'
   workflow_dispatch:
 
 # Ensure the action has permission to push commits back to the repo
@@ -39,9 +39,9 @@ jobs:
           
           # Only commit if the raw CSV was actually modified
           if ! git diff --staged --quiet; then
-            git commit -m "🤖 Auto-update: Appended latest WC match data"
+            git commit -m "Auto-update: Appended latest WC match data"
             git push origin main
-            echo "✅ Raw data saved to repository."
+            echo "Raw data saved to repository."
           else
             echo "No changes to raw data to commit."
           fi
