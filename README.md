@@ -8,11 +8,11 @@ The system features a **FastAPI** backend for millisecond inference, a **Streaml
 - **Model Weights:** [Hugging Face Model Link Here](https://huggingface.co/GaryC246/soccer-models/tree/main)
 
 CI/CD & Automated Data Updates
-This project uses GitHub Actions to automatically fetch new match data and update the model's historical context without manual intervention.
-Daily Data Fetch: A cron job runs scripts/update_and_generate.py every day at 6:00 AM UTC.
-API Ingestion: It queries API-Football for yesterday's matches, extracts player stats, and appends them to the raw dataset.
-Matrix Regeneration: It recalculates the hybrid_matrices.csv with updated EWMA form and rest days.
-Auto-Deploy: It pushes the updated CSV directly to the Hugging Face Model Hub, instantly updating the live application.
+- This project uses GitHub Actions to automatically fetch new match data and update the model's historical context without manual intervention.
+- Daily Data Fetch: A cron job runs scripts/update_and_generate.py every day at 6:00 AM UTC.
+- API Ingestion: It queries API-Football for yesterday's matches, extracts player stats, and appends them to the raw dataset.
+- Daily Updates: It recalculates the hybrid_matrices.csv with updated EWMA form and rest days.
+- Auto-Deploy: It pushes the updated CSV directly to the Hugging Face Model Hub, instantly updating the live application.
 
 ## Architecture & Tech Stack
 - **Feature Engineering:** Pandas, NumPy (EWMA, Rest Days)
