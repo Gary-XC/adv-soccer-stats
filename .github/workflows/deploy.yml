@@ -1,0 +1,56 @@
+name: Update WC Data & Sync to HF Space
+
+on:
+  # Allow manual triggering from the GitHub Actions tab
+  workflow_dispatch:
+  
+  # Optional: Run automatically every day at 6:00 AM UTC during the World Cup
+  # schedule:
+  #   - cron: '0 6 * * *'
+
+jobs:
+  update-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install pandas numpy scikit-learn lightgbm huggingface_hub
+
+      - name: Run WC Matrix Update Script
+        run: |
+          python scripts/update_wc_matrices.py
+
+      - name: Commit updated CSV to GitHub (Optional)
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+          git add data/hybrid_matrices.csv
+          git commit -m "Automated update: WC hybrid matrices" || echo "No changes to commit"
+          git push
+
+      - name: Upload to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          SPACE_ID: "GaryC246/soccer-app" # <-- CHANGE THIS to your actual Space ID
+        run: |
+          python -c "
+          from huggingface_hub import HfApi
+          api = HfApi()
+          api.upload_file(
+              path_or_fileobj='data/hybrid_matrices.csv',
+              path_in_repo='data/hybrid_matrices.csv',
+              repo_id='${{ env.SPACE_ID }}',
+              repo_type='space',
+              token='${{ env.HF_TOKEN }}'
+          )
+          print('Successfully uploaded hybrid_matrices.csv to Hugging Face Space!')
+          "

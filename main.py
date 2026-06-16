@@ -1,73 +1,64 @@
-import os
-import sys
+import pandas as pd
+import numpy as np
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import datetime
 
-from src.pipeline import SoccerPipeline
-from src.models import PlayerModels
-from src.visualization import plot_pizza_chart, plot_usage_vs_efficiency
-
+from src.data_splitter import DataSplitter
+from src.stacking_models import StratifiedStackingEnsemble
+from src.baseline_engine import EloBaselineEngine
+from sklearn.metrics import log_loss, accuracy_score
 
 def main():
-    print("Starting Soccer Analytics Pipeline...")
+    print("=== Phase 2: Configuration-Driven Splitting ===")
+    
+    match_df = pd.read_csv("src/data/hybrid_matrices.csv", parse_dates=['date'])
+    
+    splitter = DataSplitter(config_path="config.yaml")
+    X_train, y_train, train_df, X_test, y_test, test_df = splitter.split_data(match_df)
+    
+    print(f"Train set shape: {X_train.shape} | Test set shape: {X_test.shape}")
+    y_train_classes = np.ones(len(y_train), dtype=int) # Default to Draw (1)
+    y_train_classes[y_train['goals_total_home'] > y_train['goals_total_away']] = 0 # Home Win
+    y_train_classes[y_train['goals_total_home'] < y_train['goals_total_away']] = 2 # Away Win
+    
+    y_test_classes = np.ones(len(y_test), dtype=int)
+    y_test_classes[y_test['goals_total_home'] > y_test['goals_total_away']] = 0
+    y_test_classes[y_test['goals_total_home'] < y_test['goals_total_away']] = 2
 
-    # Directories
-    RAW_PATH = "data/historical"
-    PROCESSED_PATH = "data/processed"
-    os.makedirs(PROCESSED_PATH, exist_ok=True)
+    print("\n=== Phase 3: Stratified Hybrid Stacking ===")
+    # Initialize the NEW Stratified Pipeline
+    ensemble = StratifiedStackingEnsemble(n_splits=5, random_state=246)
+    
+    oof_td, oof_bu = ensemble.generate_oof_predictions(X_train, y_train_classes)
+    ensemble.train_meta_learner(oof_td, oof_bu, y_train_classes)
+    ensemble.fit_final_models(X_train, y_train_classes)
 
-    # Running the Data Extraction & Engineering Pipeline
-    print("\n--- Phase 1: Data Processing ---")
-    pipeline = SoccerPipeline(RAW_PATH)
-    pipeline.load_data()
-    master_df = pipeline.run()
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    versioned_dir = f"models/optimized_pipeline_{timestamp}"
+    
+    print(f"\n=== Saving Versioned Artifacts to: {versioned_dir} ===")
+    ensemble.save_artifacts(output_dir=versioned_dir)
 
-    # Machine Learning Models
-    print("\n--- Phase 2: Machine Learning ---")
-    player_models = PlayerModels(master_df)
+    with open("models/latest_model_path.txt", "w") as f:
+        f.write(versioned_dir)
+    print("✅ 'latest_model_path.txt' updated.")
 
-    print("Clustering player roles...")
-    player_models.cluster_roles(n_clusters=5)
-
-    print("Calculating season projections...")
-    final_analytics_df = player_models.project_season_totals()
-
-    # Exporting the finalized data
-    print("\n--- Phase 3: Export ---")
-    output_file = os.path.join(PROCESSED_PATH, "master_analytics.csv")
-    final_analytics_df.to_csv(output_file, index=False)
-    print(f"Success! Master analytics dataset saved to {output_file}")
-
-    # Example to make sure that everything is working
-    GEN_IMAGES_PATH = "visuals"
-    print("\n--- Phase 4: Verification Demo ---")
-    target_player = "Vinicius Júnior"
-
-    try:
-        print(f"\nFinding statistical twins for {target_player}:")
-        twins = player_models.find_statistical_twins(target_player, num_twins=3)
-        print(
-            twins[["Player", "Squad", "Pos", "Similarity_Score"]]  # type: ignore
-        )  # pyright: ignore[reportArgumentType]
-    except Exception as e:
-        print(f"Could not find twins for {target_player}. Error: {e}")
-
-    # Saving the visualizations
-    print(f"\nGenerating and saving pizza chart for {target_player}...")
-    pizza_fig = plot_pizza_chart(target_player, final_analytics_df)
-    if pizza_fig:
-        safe_name = target_player.replace(" ", "_").lower()
-        pizza_path = os.path.join(GEN_IMAGES_PATH, f"{safe_name}_pizza.png")
-        pizza_fig.savefig(pizza_path, bbox_inches="tight", dpi=300)
-
-    print("\nGenerating and saving Volume vs Efficiency scatter plot...")
-    scatter_fig = plot_usage_vs_efficiency(final_analytics_df, top_n=50)
-    if scatter_fig:
-        scatter_path = os.path.join(GEN_IMAGES_PATH, "volume_vs_efficiency_top50.png")
-        scatter_fig.savefig(scatter_path, bbox_inches="tight", dpi=300)
-
-    print(f"\nAll visualizations successfully saved to: {GEN_IMAGES_PATH}")
-
+    print("\n=== Phase 4: Inference & Evaluation ===")
+    # Pass X_test to generate calibrated predictions
+    test_predictions = ensemble.predict(X_test)
+    
+    # Evaluate ML Model
+    ml_log_loss = log_loss(y_test_classes, test_predictions)
+    ml_accuracy = accuracy_score(y_test_classes, np.argmax(test_predictions, axis=1))
+    
+    print(f"\n--- Final Results ---")
+    print(f"Stratified ML Log-Loss: {ml_log_loss:.4f} | Accuracy: {ml_accuracy:.4f}")
+    
+    # Evaluate Baseline
+    baseline = EloBaselineEngine()
+    baseline_probs = baseline.predict_proba(test_df)
+    baseline_metrics = baseline.evaluate(y_test, baseline_probs)
+    print(f"Baseline Elo Log-Loss: {baseline_metrics['log_loss']}")
 
 if __name__ == "__main__":
     main()
