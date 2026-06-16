@@ -4,8 +4,8 @@ An end-to-end MLOps pipeline for predicting soccer match outcomes using a hybrid
 
 The system features a **FastAPI** backend for millisecond inference, a **Streamlit** frontend for interactive dashboards, and a fully automated **GitHub Actions CI/CD** pipeline that fetches daily match data from API-Football to keep the model's understanding of team form up-to-date.
 
-**Live App:** [Hugging Face Space Link Here](https://huggingface.co/spaces/GaryC246/soccer-predictions)
-**Model Weights:** [Hugging Face Model Link Here](https://huggingface.co/GaryC246/soccer-models/tree/main)
+- **Live App:** [Hugging Face Space Link Here](https://huggingface.co/spaces/GaryC246/soccer-predictions)
+- **Model Weights:** [Hugging Face Model Link Here](https://huggingface.co/GaryC246/soccer-models/tree/main)
 
 CI/CD & Automated Data Updates
 This project uses GitHub Actions to automatically fetch new match data and update the model's historical context without manual intervention.
